@@ -19,12 +19,12 @@ class MyClass(object, MyParent1, MyParent2):
   
   def __init__(self, param1=None):
 
-      MyParent1.__init__(self)                 # Initialize our parent(s), MUST be done explicitly
+      MyParent1.__init__(self)                      # Initialize our parent(s), MUST be done explicitly
       
-      self.__private_prop1 = "I'm Private"     # Declare and initialize our object (private) properties
-      self.public_prop1 = "I'm Public"         # Declare and initialize our object (public) properties
-      self.__public_prop2__ = "I'm also Public"         # Declare and initialize our object (public) properties
-      ## self["name"] = param1                 # To use this syntax you need to define the __setitem__() function
+      self.__private_prop1 = "I'm Private"          # Declare and initialize our object (private) properties
+      self.public_prop1 = "I'm Public"              # Declare and initialize our object (public) properties
+      self.__public_prop2__ = "I'm also Public"     # Declare and initialize our object (public) properties
+      ## self["name"] = param1                      # To use this syntax you need to define the __setitem__() function
 
   # Property1 is exposed using getters and setters. Similarly a "deleter" can also be declared using @prop_name.deleter
   @property
@@ -45,4 +45,13 @@ if __name__ == "__main__":
 
   print(o1.public_prop1)
   ## print(o1.__private_prop1) --> Won't run
+  print(o1._MyClass__private_prop1) # However this works
+  # More about introspection -> https://docs.python.org/3/library/inspect.html
+  print(o1.__dict__) # because the interpreter mangles names prefixed with __name to _class__name
   print(o1.__public_prop2__)
+
+  # Equivalence of Objects
+  ox = o1
+  if ox is o1:
+    print("ox and o1 point to the same memory location = " + str(id(ox)))
+
