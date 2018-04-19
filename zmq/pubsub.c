@@ -18,7 +18,7 @@
 This is an illustration of a PUB --> XSUB ---> XPUB ---> SUB network
 
 NOTE
-Be very careful when specifying the address to bind() vs connect() when using TCP
+Be very careful when specifying the address to bind() vs connect() when using *TCP*
 bind() does NOT understand localhost (or any DNS name), instead you can use 
 (1) interface:port [eg: eth0:5555]
 (2) IP:port
@@ -29,6 +29,12 @@ https://stackoverflow.com/questions/6024003/why-doesnt-zeromq-work-on-localhost/
 // depends on glib and zmq
 gcc pubsub.c -D_GNU_SOURCE -l"zmq" -l"glib-2.0" -o pubsub -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include
 
+The example illustrates the following topology of two publishers that are forwarded to one subscriber using an XPUB/XSUB bridge
+ - The subscriber only connects to the address of the XPUB interface
+ - The XSUB interface BINDS to both the Publish endpoints
+
+SUBSCRIBER   <------  XPUB+++++XSUB <---- PUB_1
+									<---- PUB_2
 */
 
 #define STR_HELPER(x) #x
@@ -40,6 +46,7 @@ gcc pubsub.c -D_GNU_SOURCE -l"zmq" -l"glib-2.0" -o pubsub -I/usr/include/glib-2.
 #define PLUGIN_SOCK_FMT			"ipc://@/tmp/panl/plugin/%s"
 #define BACNET_SOCK				"ipc://@/tmp/panl/plugin/bacnet"
 #define PRIMARY_PUB_SOCK		"ipc://@/tmp/panl/primary/pub"
+#define PLUGIN_PUB_SOCK			"ipc://@/tmp/panl/plugin/pub"
 
 
 #define RPC_SOCK_TYPE_SVR		ZMQ_REP
@@ -56,7 +63,7 @@ gcc pubsub.c -D_GNU_SOURCE -l"zmq" -l"glib-2.0" -o pubsub -I/usr/include/glib-2.
 #define	NOTIF_SOCK_ADDR_CLIENT	 	"tcp://localhost:" STR(PLUGIN_NOTIFICATIONS_PORT)
 
 
-void* g_router_context;
+void* g_pub_sub_context;
 
 void pub_sub_router(void)
 {
@@ -64,35 +71,84 @@ void pub_sub_router(void)
 	void* context = zmq_ctx_new ();
 		
 	printf("Frontend BINDING to %s\n", NOTIF_SOCK_ADDR_SVR);
-    void *frontend = zmq_socket (context, ZMQ_XSUB );
-    int rc = zmq_bind(frontend, NOTIF_SOCK_ADDR_SVR); // Publisher is going to connect here
+    void *frontend = zmq_socket (context, ZMQ_XPUB );
+    int rc = zmq_bind(frontend, NOTIF_SOCK_ADDR_SVR); // Subscribers are going to connect here
     assert (rc == 0);
 
     printf("Backend BINDING to %s\n", PRIMARY_PUB_SOCK);
-    void *backend = zmq_socket (context, ZMQ_XPUB); // Plugins are going to connect here
+    void *backend = zmq_socket (context, ZMQ_XSUB); // Publishers are going to connect here
     rc = zmq_bind (backend, PRIMARY_PUB_SOCK);
     assert (rc == 0);
+    printf("Backend BINDING to %s\n", PLUGIN_PUB_SOCK);
+    rc = zmq_bind (backend, PLUGIN_PUB_SOCK);
+    assert (rc == 0);
+    
+//  zmq_pollitem_t pollitems [] = { { frontend, 0, ZMQ_POLLIN, 0 },
+//  { backend, 0, ZMQ_POLLIN, 0 } };
+//	zmq_poll (pollitems, 1, 1);
     
     zmq_proxy (frontend, backend, NULL);
 }
 
 
-void publish(void)
+void publish_primary(void)
 {
 
 	int count = 0;
-	printf("Publisher connecting to %s\n", NOTIF_SOCK_ADDR_CLIENT);
-	void* publisher = zmq_socket(g_router_context, ZMQ_PUB);
-	int conn = zmq_connect(publisher, NOTIF_SOCK_ADDR_CLIENT);
+	printf("Publisher connecting to %s\n", PRIMARY_PUB_SOCK);
+	void* publisher = zmq_socket(g_pub_sub_context, ZMQ_PUB);
+	int conn = zmq_connect(publisher, PRIMARY_PUB_SOCK);
 	char payload[255];
 
 //  zmq_pollitem_t pollitems [] = { { publisher, 0, ZMQ_POLLIN, 0 } };
 //	zmq_poll (pollitems, 1, 1);
+	bool init = false;
 
 	while(1){
-		sprintf(payload, "[%d] This is a broadcast message to all ye liseners", ++count);
-		int size = zmq_send (publisher, payload, strlen (payload), 0);
-		printf("Pub %d\n", size);
+		sprintf(payload, "[%d] This is a PRIMARY broadcast message to all ye liseners", ++count);
+		int size;
+		/* To fix the "first message lost issue"
+		 * we repeat the first message after a DELAY (required)
+		 */
+		if(!init){
+			size = zmq_send (publisher, payload, strlen (payload), 0);
+			printf("[primary] Pub %d\n", size);
+			init = true;
+			sleep(5);
+		}
+		size = zmq_send (publisher, payload, strlen (payload), 0);
+		printf("[primary] Pub %d\n", size);
+		sleep(5);
+	}
+}
+
+void publish_plugin(void)
+{
+
+	int count = 0;
+	printf("Publisher connecting to %s\n", PLUGIN_PUB_SOCK);
+	void* publisher = zmq_socket(g_pub_sub_context, ZMQ_PUB);
+	int conn = zmq_connect(publisher, PLUGIN_PUB_SOCK);
+	char payload[255];
+
+//  zmq_pollitem_t pollitems [] = { { publisher, 0, ZMQ_POLLIN, 0 } };
+//	zmq_poll (pollitems, 1, 1);
+	bool init = false;
+
+	while(1){
+		sprintf(payload, "[%d] This is a PLUGIN broadcast message to all ye liseners", ++count);
+		int size;
+		/* To fix the "first message lost issue"
+		 * we repeat the first message after a DELAY (required)
+		 */
+		if(!init){
+			size = zmq_send (publisher, payload, strlen (payload), 0);
+			printf("[plugin] Pub %d\n", size);
+			init = true;
+			sleep(5);
+		}
+		size = zmq_send (publisher, payload, strlen (payload), 0);
+		printf("[plugin] Pub %d\n", size);
 		sleep(5);
 	}
 }
@@ -100,13 +156,13 @@ void publish(void)
 
 void subscribe(void)
 {
-	printf("Starting subscriber.. %s\n", PRIMARY_PUB_SOCK);
-	void* subscriber = zmq_socket(g_router_context, ZMQ_SUB);
-	int conn = zmq_connect(subscriber, PRIMARY_PUB_SOCK);
+	printf("Starting subscriber.. %s\n", NOTIF_SOCK_ADDR_CLIENT);
+	void* subscriber = zmq_socket(g_pub_sub_context, ZMQ_SUB);
+	int conn = zmq_connect(subscriber, NOTIF_SOCK_ADDR_CLIENT);
 	conn = zmq_setsockopt(subscriber, ZMQ_SUBSCRIBE, 0, 0);
 	char msg [256];
 	
-//    zmq_pollitem_t pollitems [] = { { subscriber, 0, ZMQ_POLLIN, 0 } };
+//  zmq_pollitem_t pollitems [] = { { subscriber, 0, ZMQ_POLLIN, 0 } };
 //	zmq_poll (pollitems, 1, 1);
 
 	while(1){
@@ -118,15 +174,18 @@ void subscribe(void)
 int main(int argc, char* argv[])
 {
 
-	g_router_context = zmq_ctx_new ();
+	g_pub_sub_context = zmq_ctx_new ();
 /* NOTE how the first message is lost
 https://github.com/zeromq/libzmq/issues/2267
 */
 
 GThread* router = g_thread_new("router", pub_sub_router, NULL);
-GThread* pub = g_thread_new("publish", publish, NULL);
-sleep(3);
 GThread* sub = g_thread_new("subscribe", subscribe, NULL);
+sleep(3);
+GThread* pubp = g_thread_new("publish-plugin", publish_plugin, NULL);
+GThread* pubpp = g_thread_new("publish-primary", publish_primary, NULL);
+sleep(3);
+
 
 
 pause();
