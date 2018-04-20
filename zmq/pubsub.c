@@ -16,6 +16,14 @@
 /*
 
 This is an illustration of a PUB --> XSUB ---> XPUB ---> SUB network
+The topology is of two publishers that are forwarded to one subscriber using an XPUB/XSUB bridge
+ - The subscriber only connects to the XPUB endpoint
+ - Publish path: The XSUB interface BINDS to a single /pif/pub endpoint, all publishers connect to this
+ - Subscribe ptah: The XPUB binds to <IP><PORT> onto which all interested subscribers connect to
+ - The Subscribers must be aware of the TOPICS that are going to be published, if filtering is required
+
+SUBSCRIBER   <------  XPUB+++++XSUB <---- PUB_1
+				    <---- PUB_2
 
 NOTE
 Be very careful when specifying the address to bind() vs connect() when using *TCP*
@@ -29,24 +37,19 @@ https://stackoverflow.com/questions/6024003/why-doesnt-zeromq-work-on-localhost/
 // depends on glib and zmq
 gcc pubsub.c -D_GNU_SOURCE -l"zmq" -l"glib-2.0" -o pubsub -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include
 
-The example illustrates the following topology of two publishers that are forwarded to one subscriber using an XPUB/XSUB bridge
- - The subscriber only connects to the address of the XPUB interface
- - The XSUB interface BINDS to both the Publish endpoints
 
-SUBSCRIBER   <------  XPUB+++++XSUB <---- PUB_1
-									<---- PUB_2
 */
 
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)
 
-#define RPC_PORT					8080
+#define RPC_PORT			8080
 #define PLUGIN_NOTIFICATIONS_PORT	8081
 
 #define PLUGIN_SOCK_FMT			"ipc://@/tmp/panl/plugin/%s"
-#define BACNET_SOCK				"ipc://@/tmp/panl/plugin/bacnet"
-#define PRIMARY_PUB_SOCK		"ipc://@/tmp/panl/primary/pub"
-#define PLUGIN_PUB_SOCK			"ipc://@/tmp/panl/plugin/pub"
+#define BACNET_SOCK			"ipc://@/tmp/panl/plugin/bacnet"
+//#define PRIMARY_PUB_SOCK		"ipc://@/tmp/panl/primary/pub"
+#define PUBLISH_ENDPOINT		"ipc://@/tmp/panl/pif/pub"
 
 
 #define RPC_SOCK_TYPE_SVR		ZMQ_REP
@@ -68,19 +71,16 @@ void* g_pub_sub_context;
 void pub_sub_router(void)
 {
 	
-	void* context = zmq_ctx_new ();
+    void* context = zmq_ctx_new ();
 		
-	printf("Frontend BINDING to %s\n", NOTIF_SOCK_ADDR_SVR);
+    printf("Frontend BINDING to %s\n", NOTIF_SOCK_ADDR_SVR);
     void *frontend = zmq_socket (context, ZMQ_XPUB );
     int rc = zmq_bind(frontend, NOTIF_SOCK_ADDR_SVR); // Subscribers are going to connect here
     assert (rc == 0);
 
-    printf("Backend BINDING to %s\n", PRIMARY_PUB_SOCK);
+    printf("Backend BINDING to %s\n", PUBLISH_ENDPOINT);
     void *backend = zmq_socket (context, ZMQ_XSUB); // Publishers are going to connect here
-    rc = zmq_bind (backend, PRIMARY_PUB_SOCK);
-    assert (rc == 0);
-    printf("Backend BINDING to %s\n", PLUGIN_PUB_SOCK);
-    rc = zmq_bind (backend, PLUGIN_PUB_SOCK);
+    rc = zmq_bind (backend, PUBLISH_ENDPOINT);
     assert (rc == 0);
     
 //  zmq_pollitem_t pollitems [] = { { frontend, 0, ZMQ_POLLIN, 0 },
@@ -95,9 +95,9 @@ void publish_primary(void)
 {
 
 	int count = 0;
-	printf("Publisher connecting to %s\n", PRIMARY_PUB_SOCK);
+	printf("Publisher connecting to %s\n", PUBLISH_ENDPOINT);
 	void* publisher = zmq_socket(g_pub_sub_context, ZMQ_PUB);
-	int conn = zmq_connect(publisher, PRIMARY_PUB_SOCK);
+	int conn = zmq_connect(publisher, PUBLISH_ENDPOINT);
 	char payload[255];
 
 //  zmq_pollitem_t pollitems [] = { { publisher, 0, ZMQ_POLLIN, 0 } };
@@ -126,9 +126,9 @@ void publish_plugin(void)
 {
 
 	int count = 0;
-	printf("Publisher connecting to %s\n", PLUGIN_PUB_SOCK);
+	printf("Publisher connecting to %s\n", PUBLISH_ENDPOINT);
 	void* publisher = zmq_socket(g_pub_sub_context, ZMQ_PUB);
-	int conn = zmq_connect(publisher, PLUGIN_PUB_SOCK);
+	int conn = zmq_connect(publisher, PUBLISH_ENDPOINT);
 	char payload[255];
 
 //  zmq_pollitem_t pollitems [] = { { publisher, 0, ZMQ_POLLIN, 0 } };
@@ -175,7 +175,7 @@ int main(int argc, char* argv[])
 {
 
 	g_pub_sub_context = zmq_ctx_new ();
-/* NOTE how the first message is lost
+/* NOTE how the first message is lost without the "init" workaround in the publishers
 https://github.com/zeromq/libzmq/issues/2267
 */
 
