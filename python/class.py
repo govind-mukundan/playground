@@ -13,11 +13,11 @@ class MyParent2:
 
 # Inheriting from object is necessary for @property etc to work OK
 # This is called "new style" classes
-class MyClass(object, MyParent1, MyParent2):
+class MyClass(object, MyParent1, MyParent2):        # Multiple inheritance is OK
 
   "======== My Doc String ==========="   
   
-  def __init__(self, param1=None):
+  def __init__(self, param1=None):                  # __init__ is like a constructor, it is called after creating an object. By convention it's the first method of a class
 
       MyParent1.__init__(self)                      # Initialize our parent(s), MUST be done explicitly
       
