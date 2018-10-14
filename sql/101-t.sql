@@ -1,4 +1,8 @@
 
+/* Help */
+/* https://www.techonthenet.com/sql/index.php */
+
+
 /* Drop */
 DROP TABLE People, Prizes
 
@@ -131,3 +135,17 @@ Where Name = ANY(SELECT Name FROM Prizes)
 Select *
 From People
 Where Name > ALL(SELECT Name FROM Prizes)
+
+
+
+/* TO DO */
+
+
+
+/* Subqueries and Common Table Expressions */
+/* refer: https://blog.expensify.com/2015/09/25/the-simplest-sqlite-common-table-expression-tutorial/ */
+
+/* CTEs are basically "named subqueries", they have to be defined first, before the actual usage */
+WITH my_cte AS ( SELECT * FROM Prizes )
+SELECT Name FROM my_cte;
+

@@ -31,3 +31,18 @@ cur.executemany("insert into characters(c) values (?)", ['a', 'b', 'c'])
 
 cur.execute("select c from characters")
 print(cur.fetchall())
+
+
+##### SQLite and Pandas ###########
+
+import pandas as pd
+
+# Perform SQL query through the connection.
+# The return value is a pandas data frame.
+df = pd.read_sql_query ('SELECT * FROM Students', conn)
+df.head()
+
+
+
+c.close()
+conn.close()
