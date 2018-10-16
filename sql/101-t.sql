@@ -36,9 +36,13 @@ SELECT * FROM People, Prizes
 
 /* ===== Joins ========= */
 
-/* Joining is basically concerned with "joining" or "combining" rows in two different tables. 
+/* 
+Joining is basically concerned with "joining" or "combining" rows in two different tables. 
 Typically you want to generate a single row for "matching" rows in different tables, joins help with that. 
-Depending on how the operation handles rows that *do not* match, joins are sub-classified */
+Depending on how the operation handles rows that *do not* match, joins are sub-classified 
+
+Technically a JOIN is "subset" of the Cartesian Product of two tables 
+*/
 
 /* Inner */
 SELECT * 
@@ -148,4 +152,30 @@ Where Name > ALL(SELECT Name FROM Prizes)
 /* CTEs are basically "named subqueries", they have to be defined first, before the actual usage */
 WITH my_cte AS ( SELECT * FROM Prizes )
 SELECT Name FROM my_cte;
+
+/* ====== UNION ========= */
+
+/* The idea behind a union is to combine sets / columns. eg you have 2 tables - Teachers and Students and you want to find the 
+   list of "People". Effectively, you'll end up creating new ROWS in your new "unionized" table.
+   Where as for a JOIN you will create new COLUMNS 
+   
+   While creating a UNION both tables should have columns with the *same* type. 
+   Usually the same name makes more sense (use the AS operator to create temporary names)
+*/
+
+/* The AS blah is optional below */
+SELECT Prize FROM Prizes AS blah
+UNION
+SELECT Address FROM People AS blah
+
+/* Something more complicated:
+    SELECT 'Customer' As Type, 
+           FirstName + ' ' + LastName AS ContactName, 
+           City, Country, Phone
+      FROM Customer
+    UNION
+    SELECT 'Supplier', 
+           ContactName, City, Country, Phone
+      FROM Supplier
+*/
 

@@ -51,6 +51,11 @@ if all(l):
 
 if any(l):
     print("ANY element of this list is TRUE")
+	
+## LIST
+L = [1,2,3]
+L3 = L * 3   # = [1,2,3,1,2,3,1,2,3]
+# For scalar multiplication you have to use map() or numpy * operator
 
 ## DICT
 d = {}
