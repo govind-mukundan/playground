@@ -36,6 +36,15 @@ class MyClass(object, MyParent1, MyParent2):        # Multiple inheritance is OK
   def public_prop1(self, value):
     print("Setting value")
     self.__public_prop1 = value + "++setter++"
+    
+  # Destructor
+  def __del__(self):
+    print("Don't delete me!")
+    
+  # Context manager used along with the WITH keyword
+  # https://docs.python.org/2/reference/compound_stmts.html#with
+  # https://eli.thegreenplace.net/2009/06/12/safely-using-destructors-in-python/
+  
 
 
 
