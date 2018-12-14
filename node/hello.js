@@ -34,7 +34,7 @@ module.exports = {
     boringConstant : 42
 }
 
-// Yet abother way to do this. This is pretty much wnat module.exports does
+// Yet abother way to do this. This is pretty much what module.exports does
 module.exports = function(){
     
     // None of these are exported by default
@@ -69,8 +69,11 @@ if(require.main === module){
     // Note how you cannot call funGovind() directly
     exports.funGovind();
 
+    SimulationResult = false; // Flag to control the simulation result, true to test the +ve flow, false for error path
     Application_Sync();
-    ApplicationAsync_ChainedCB();
+    //ApplicationAsync_ChainedCB();
+    ApplicationAsync_Promise();
+    //ApplicationAsync_async();
 
 }
 
@@ -141,9 +144,82 @@ function ApplicationAsync_ChainedCB (){
     )
 }
 
-// Using async/await
-
 // Promises - https://www.datchley.name/es6-promises/
+/* 
+    The input to a Promise() is the "operation" function or the "long running task". The signature of this task is 
+   predefined to take two other functions as parameters - called the "resolve" and "reject" functions
+   i.e. Promise(function Task(resolve, reject)) and we expect the Task to do the following:
+   function Task(resolve, reject){
+       // Wrap the normal Node IO operation within a Task(resolve, reject) structure
+       do_normal_node_async_io(options, function cb(err, result){
+        if(err) reject(err)
+        if(result) resolve(result)
+       }
+   }
+
+   p = new Promise(Task);
+
+   Note that at this point the actual "resolve" and "reject" functions are not defined yet, but you still have a Promise that can be passed around
+   but *not* resolved or rejected. Q: Will the do_stuff() be executed in the background and control wait for the resolution/rejection ??
+   To consume the promise, you have to attach a resolve and reject handler to the .then() and .catch() methods of the Promise object
+   p.then(on_success(val)).catch(on_failure(val))
+
+   => It's better to use a single catch statement while chaining promises
+
+   A neater way to write this is to have a function that RETURNS the promise
+
+   function PTask(){
+       return new Promise(function Task(resolve, reject){
+            do_normal_node_async_io(options, function cb(err, result){
+                if(err) reject(err)
+                if(result) resolve(result)
+            }
+        } );
+   }
+*/
+// Wrap the DB query inside a promise, and include any application unaware business logic inside
+function CheckSomethingInDB_Promise (query){
+    return new Promise(function (resolve, reject){
+        dbQuery(query, 
+            function PrivateWorkCBHandler(error, result){
+                if(error){
+                    SomeOtherPrivateWork();
+                    reject(error);
+                }
+                else {
+                    SomePrivateWork(result);
+                    resolve(result);
+                }
+            }
+        )}
+    );
+}
+
+function ApplicationAsync_Promise (){
+    console.log("==== Trying Promises ====\n");
+    /* Notice how you use then() to chain promises and print out the termination string
+      ==> An error in the first then() will cause the *first* catch [ErrorAction()] to be invoked followed by the next then()
+    */
+    CheckSomethingInDB_Promise().then(Action).then( _ => console.log("===================================================\n"))
+    .catch(ErrorAction).then( _ => console.log("++++++++++++++++++++++++++++++++++++++++++++++\n"));
+}
+
+// Using async/await: https://javascript.info/async-await
+async function ApplicationAsync_async (){
+    console.log("==== Trying async/await ====\n");
+    /* Note the use of try/catch. 
+       ==> Promise.reject() will **automatically** result in an EXCEPTION being thrown at the await condition.
+       ==> So we can keep the flow pseudo synchronous
+    */
+    try{
+        result = await CheckSomethingInDB_Promise();
+        Action(result);
+        console.log("===================================================\n");
+    } catch(err){
+        ErrorAction(err);
+        console.log("+++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+    }
+}
 
 // time-series / parallel
 
@@ -164,10 +240,13 @@ function ErrorAction(error){
     console.log(`Lets do our !! ERROR !! action = ${error}`);
 }
 
-function myFunc(callback) {
+function makeSoup(callback) {
   // at this point we have the result of the DB query, let's give it to the application
   console.log(" ++ Pho PHO Pho ++ ");
-  callback(null, 'Here have some Pho');
+  // Success
+  //callback(null, 'Here have some Pho');
+  // Error
+  callback("Not enough beef", null);
   
 }
 
@@ -180,7 +259,7 @@ function dbQuery(something, callback){
 
     console.log(" ++ Mamma's going to make some soup for you ++ ");
     // Our psudo DB query
-    setTimeout(myFunc, 1500, callback);
+    setTimeout(makeSoup, 1500, callback);
     
     return true;
     
@@ -198,6 +277,20 @@ callback = function(response) {
     console.log(str)
   })
 }
+
+// Dictionaries
+// In JS all objects are dictionaries and ALL keys in dictionaries are STRINGS
+var testObj = {a: 28, b: 82, c: "hello", d: 983, e: 'lara', o: "key", f: '82828', g: 8};
+Object.keys(testObj)
+// [ 'a', 'b', 'c', 'd', 'e', 'o', 'f', 'g' ]
+
+// Difference between x[key] and x.key (not always the same) ??
+// delete optOutList.topics.state.objects[objects[i]]; != delete optOutList.topics.state.objects.objects[i];
+
+
+// Benchmarking JS
+// http://jsben.ch/WqlIl
+// https://www.typescriptlang.org/docs/handbook/declaration-files/deep-dive.html
 
 var body = JSON.stringify({ "version": "1",
 "region": "us-east-1",
