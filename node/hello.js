@@ -1,4 +1,11 @@
 
+// Execute script with .load hello.js from within the REPL
+
+// process is a GLOBAL object that is available for the application to hook into the current Node process
+// You can for instance execute cleanup routines on process exit and so on
+// https://nodejs.org/api/process.html
+process.cwd()
+process.chdir('C:/Govind/Research/playground/node') 
 
 // require() is a special function defined in Node which is useful for module encapsulation
 // https://nodejs.org/api/modules.html#modules_modules
@@ -15,7 +22,7 @@ const { PI } = Math;
 // - requuire() makes everything not specifically exported private to this module by encapsulating the module inside a function()
 // - require() defines an alias called exports that initially points to module.exports for convenience
 // - The RETURN value of require() is the module.exports of the module you "required"
-exports = module.exports   // Implicitly part of require()
+exports = module.exports   // Implicitly done in require()
 
 // You can export functions or variables or whatever, as long as they are bound to the module.exports object / dictionary
 exports.funGovind = () => console.log("Govind for export");
