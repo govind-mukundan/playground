@@ -35,12 +35,22 @@ console.log(typeof null) // "object"  --> This is wrong, but retained for back c
 
 console.log(typeof myfunc) // "function" --> This is also technically wrong as functions are objects, but useful in practise
 
+/* Some operator gotchas */
+'1' != 1   // false (values are not equal)
+'1' !== 1 // true (values AND types are not equal).
+
 
 /* Objects  */
 // Objects are dictionaries
 // Create:
 var o = {}  // Literal syntax
+var o = {key:"Govind"} // is the same as
+var o = {'key':"Govind"} // literal
+
 var o = Object() // constructor syntax
+
+// non-extant members are UNDEFINED !
+o["does not exist"] // undefined
 
 // Properties
 o.p1 = 4     // same as o["p1"]
