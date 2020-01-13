@@ -54,5 +54,8 @@ printf "My Function arguments = {%s}\n" "$*"
 
 my_function 'Govind' 'mukundan'
 
+echo "Some AWK to print the PID of the bash shells running"
+ps -ef | grep -v grep | grep bash | awk '{print $1, $2}'
+# grep -v grep removes the grep process searching for bash from the initial grep output
 
 exit 0
